@@ -1,0 +1,7 @@
+[package]
+
+name = "nvm"
+version = "0.0.1"
+authors = ["klauser"]
+
+# written with rustc 0.13.0

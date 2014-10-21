@@ -16,10 +16,16 @@ body -> Vec<Stmt>
   = __ ss:(statement ** (__ ";" __)) __ {ss} ;
 
 statement -> Stmt
-  = lhs:identifier __ "<-" __ rhs:expr  { Assign(lhs, rhs) };
+  = "while" __ cond:expr "{" body:body "}" { While(cond, body) }
+  / "if" __ cond:expr "{" ifbranch:body "}" __ elsebranch_opt:( "else" __ "{" branch:body "}" { branch } )? { Condition(cond, ifbranch, elsebranch_opt.unwrap_or_else(|| Vec::new())) }
+  / lhs:identifier __ "<-" __ rhs:expr  { Assign(lhs, rhs) }
 
 expr -> Expr
-  = e:sumExpr { e }
+  = e:logicalUnaryExpr { e }
+
+logicalUnaryExpr -> Expr
+  = "not" __ e:logicalUnaryExpr __ { Not(box e) }
+  / e:sumExpr { e }
 
 sumExpr -> Expr
   = lhs:productExpr __ "+" __ rhs:sumExpr __ { Addition(box lhs, box rhs) }
@@ -27,9 +33,16 @@ sumExpr -> Expr
   / e:productExpr __ { e };
 
 productExpr -> Expr
-  = lhs:atomExpr __ "*" __ rhs:productExpr __ { Multiplication(box lhs, box rhs) }
-  / lhs:atomExpr __ "/" __ rhs:productExpr __ { Division(box lhs, box rhs) }
-  / lhs:atomExpr __ "%" __ rhs:productExpr __ { Remainder(box lhs, box rhs) }
+  = lhs:binBinExpr __ "*" __ rhs:productExpr __ { Multiplication(box lhs, box rhs) }
+  / lhs:binBinExpr __ "/" __ rhs:productExpr __ { Division(box lhs, box rhs) }
+  / lhs:binBinExpr __ "%" __ rhs:productExpr __ { Remainder(box lhs, box rhs) }
+  / e:binBinExpr __ { e }
+
+binBinExpr -> Expr
+  = e:unBinExpr __ { e }
+
+unBinExpr -> Expr
+  = "!" __ e:unBinExpr __ { BinaryNot(box e) }
   / e:atomExpr __ { e }
 
 atomExpr -> Expr
@@ -41,7 +54,7 @@ number -> int
   = [0-9_]+ { from_str::<int>(match_str).unwrap() }
 
 identifier -> String
-  = [a-zA-Z_][a-zA-Z0-9_]* { match_str.to_string() }
+  = ([a-zA-Z_][a-zA-Z0-9_]*)!("while"/"if"/"else"/"not") { match_str.to_string() }
 
 // Taken from https://github.com/kevinmehall/rust-peg/blob/master/src/grammar.rustpeg
 __ = (whitespace / eol / comment)*

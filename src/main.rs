@@ -1,20 +1,31 @@
 #![feature(phase)]
+#![feature(globs)]
+#![feature(macro_rules)]
 
 #[phase(plugin, link)] 
 extern crate log;
 #[phase(plugin)]
 extern crate peg_syntax_ext;
 
+#[cfg(test)]
+extern crate test;
+
 use vm::bytecode;
 use std::iter::range_inclusive;
+
+#[macro_escape]
+mod util;
 
 mod vm;
 mod frontend;
 
 #[cfg(test)]
-mod test;
+mod tests;
+
+
 
 // generates a routine that computes n iterations of fibonacci over 2 initial parameters
+#[cfg(not(test))]
 fn gen_fib_routine(n:uint) -> frontend::FrontendResult<vm::bytecode::Routine> {
   debug!("Generating fibonacci function for N={:u}",n);
   return match n {
@@ -66,6 +77,7 @@ fn gen_fib_routine(n:uint) -> frontend::FrontendResult<vm::bytecode::Routine> {
   }
 }
 
+#[cfg(not(test))]
 fn control_fib(n: uint, a: int, b: int) -> int{
   return match n {
     0 => 0,
@@ -85,6 +97,7 @@ fn control_fib(n: uint, a: int, b: int) -> int{
   }
 }
 
+#[cfg(not(test))]
 fn main() {
   
   let n = 100;

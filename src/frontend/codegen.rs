@@ -1,8 +1,9 @@
 
 use std::collections::{HashMap,HashSet};
 
-use super::ast::{Stmt,Assign,Expr,Addition,Subtraction, Multiplication, Division, Remainder, Variable, Constant};
-use super::super::vm::bytecode::{Routine,Instruction,Add,Sub, Mul,Div,Rem,StParam,StReg,LdParam,LdReg,Lit};
+use super::ast::*;
+use super::ast;
+use super::super::vm::bytecode::*;
 
 struct RoutineContext<'a> {
   parameter_map: HashMap<&'a str, uint>,
@@ -11,8 +12,14 @@ struct RoutineContext<'a> {
 }
 
 impl<'a> RoutineContext<'a> {
-  fn emit(&mut self, ins:Instruction) {
+  // emits instruction and returns that instruction's address
+  fn emit(&mut self, ins:Instruction) -> uint {
     self.instructions.push(ins);
+    return self.instructions.len()-1;
+  }
+
+  fn next_address(&self) -> uint {
+    return self.instructions.len();
   }
 
   fn resolve(&self, name: &str) -> CodeGenResult<SymbolResolution> {
@@ -56,14 +63,76 @@ impl<'a> RoutineContext<'a> {
         match try!(self.resolve(v[])) {
           Parameter(p) => self.emit(LdParam(p)),
           Register(r) => self.emit(LdReg(r))
-        }        
+        };
       },
       &Constant(v) => {
         self.emit(Lit(v));
       },
-      other => return Err(UnsupportedExpr(other.clone()))
+      &BinaryNot(ref e) => {
+        try!(self.compile_expr(&**e));
+        self.emit(BitNot);
+      },
+      &ast::Not(ref e) => {
+        try!(self.compile_expr(&**e));
+        self.emit(Not);
+      }
+      e@&Function(_,_) => return Err(UnsupportedExpr(e.clone()))
     };
     return Ok(());
+  }
+
+  fn compile_stmts(&mut self, body: &[Stmt]) -> CodeGenResult<()> {
+    for stmt in body.iter() {
+      match stmt {
+        &Assign(ref var,ref rhs) => {
+          let lhs = try!(self.resolve(var[]));
+          try!(self.compile_expr(rhs));
+          match lhs {
+            Parameter(r) => self.emit(StParam(r)),
+            Register(r) => self.emit(StReg(r))
+          };
+        },
+        &Condition(ref cond, ref ifbranch, ref elsebranch) => {
+          //        <cond>
+          //        jumpzero else //<--- needs to be patched
+          //    if: <ifbranch>
+          //        jump endif //<--- needs to be patched
+          //  else: <elsebranch>
+          // endif:
+          try!(self.compile_expr(cond));
+          let cond_jump_addr = self.emit(JumpZero(0));
+          try!(self.compile_stmts(ifbranch.as_slice()));          
+          let skip_else_jump_addr = self.emit(Jump(0));
+          self.instructions[cond_jump_addr] = JumpZero(self.next_address());
+          try!(self.compile_stmts(elsebranch.as_slice()));
+          self.instructions[skip_else_jump_addr] = Jump(self.next_address());
+
+          // Yes, there are many cases that could be optimized here
+        }
+        &While(ref cond, ref loop_body) => {
+          //           jump continue
+          //     loop: <body>
+          // continue: <cond>
+          //           not
+          //           jumpzero loop
+          //    break: 
+          // We won't know the continue address until we have compiled the body.
+          // We insert a placeholder now so that all the other addresses won't shift.
+          // once we patch the correct address back in.
+          let init_jump_addr = self.emit(Jump(0)); 
+          let loop_addr = self.next_address();
+          try!(self.compile_stmts(loop_body.as_slice()));
+          let continue_addr = self.next_address();
+          try!(self.compile_expr(cond));
+          self.emit(Not);
+          self.emit(JumpZero(loop_addr));
+
+          // patch continue address
+          self.instructions[init_jump_addr] = Jump(continue_addr);
+        }
+      }
+    }
+    Ok(())
   }
 }
 
@@ -116,20 +185,40 @@ fn list_variables<'a>(body: &'a[Stmt]) -> CodeGenResult<HashSet<&'a str>> {
         try!(list_vars_in_expr(vars, &**rhs));
       },
       &Constant(_) => (),
-      other => return Err(UnsupportedExpr(other.clone()))
+      &BinaryNot(ref e) => {
+        try!(list_vars_in_expr(vars, &**e));
+      },
+      &ast::Not(ref e) => {
+        try!(list_vars_in_expr(vars, &**e));
+      },
+      other@&Function(_,_) => return Err(UnsupportedExpr(other.clone()))
     }
     Ok(())
   }
   let mut vars = HashSet::new();
 
-  for stmt in body.iter() {
-    match stmt {
-      &Assign(ref lhs, ref rhs) => {
-        vars.insert(lhs.as_slice());
-        try!(list_vars_in_expr(&mut vars,rhs));
+  fn list_vars_in_stmts<'b>(vars: &mut HashSet<&'b str>, stmts: &'b [Stmt]) -> CodeGenResult<()> {
+    for stmt in stmts.iter() {
+      match stmt {
+        &Assign(ref lhs, ref rhs) => {
+          vars.insert(lhs.as_slice());
+          try!(list_vars_in_expr(vars,rhs));
+        },
+        &Condition(ref cond, ref ifbranch, ref elsebranch) => {
+          try!(list_vars_in_expr(vars, cond));
+          try!(list_vars_in_stmts(vars, ifbranch.as_slice()));
+          try!(list_vars_in_stmts(vars, elsebranch.as_slice()));
+        }
+        &While(ref cond, ref loop_body) => {
+          try!(list_vars_in_expr(vars, cond));
+          try!(list_vars_in_stmts(vars, loop_body.as_slice()))
+        }
       }
     }
+    Ok(())
   }
+
+  try!(list_vars_in_stmts(&mut vars, body));
 
   return Ok(vars);
 }
@@ -154,18 +243,8 @@ pub fn compile_routine<'a>(
     register_map: compute_map(register_names),
     instructions: Vec::new()
   };
-  for stmt in body.iter() {
-    match stmt {
-      &Assign(ref var,ref rhs) => {
-        let lhs = try!(ctx.resolve(var[]));
-        try!(ctx.compile_expr(rhs));
-        match lhs {
-          Parameter(r) => ctx.emit(StParam(r)),
-          Register(r) => ctx.emit(StReg(r))
-        }
-      }
-    }
-  }
+
+  try!(ctx.compile_stmts(body));
 
   return Ok::<Routine, CodeGenError>(Routine::new(ctx.parameter_map.len(), ctx.register_map.len(), ctx.instructions))
 }

@@ -1,7 +1,7 @@
 use std::vec::Vec;
 use std::result::Result;
 
-use super::bytecode::{Routine, Instruction, RegisterId, Add, Sub, Mul, Div, Rem, Cmp, Lit, StParam, LdParam, StReg, LdReg};
+use super::bytecode::*;
 
 
 struct StackFrame<'a> {
@@ -13,10 +13,12 @@ struct StackFrame<'a> {
 }
 
 impl<'a> StackFrame<'a> {
+  #[inline]
   fn pop(&mut self) -> Result<int,RuntimeError> {
     return self.stack.pop().ok_or_else(|| StackUnderflow);
   }
 
+  #[inline]
   fn push(&mut self, v:int) {
     self.stack.push(v);
   }
@@ -79,15 +81,22 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
     return Err(NotEnoughParameters(parameters.len(), routine.num_parameters));
   }
 
-  debug!("execute routine({})+{:2u}", parameters, routine.num_registers);
+  debug!("execute routine({})+{:2u} (instruction count: {})", 
+    parameters, 
+    routine.num_registers, 
+    routine.instructions.len());
   let mut frame = StackFrame {
     parameters: parameters,
     registers: Vec::from_elem(routine.num_registers, 0),
-    stack: Vec::new(),
+    stack: match routine.max_stack_size {
+      Some(max) => Vec::with_capacity(max),
+      None => Vec::new()
+    },
     next_instruction: 0,
     routine: routine
   };
 
+  #[inline]
   fn binary_op(frame: &mut StackFrame, op: |int,int| -> Result<int,RuntimeError>) -> Result<(),RuntimeError> {
     let rhs = try!(frame.pop());
     let lhs = try!(frame.pop());
@@ -95,6 +104,7 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
     return Ok(());
   }
 
+  #[inline]
   fn unary_op(frame: &mut StackFrame, op: |int| -> Result<int,RuntimeError>) -> Result<(),RuntimeError> {
     let operand = try!(frame.pop());
     frame.push(try!(op(operand)));
@@ -109,6 +119,7 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
 
     let ins = frame.routine.instructions[frame.next_instruction];
     debug!("XINS({:3u})+{:2u} {}", frame.next_instruction, frame.stack.len(), ins);
+    let mut control_transfer = false;
     match ins {
       Add => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs + rhs))),
       Sub => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs - rhs))),
@@ -116,6 +127,12 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
       Div => try!(binary_op(&mut frame, |lhs,rhs| if rhs == 0 { Err(DivisionByZero) } else { Ok(lhs / rhs) } )),
       Rem => try!(binary_op(&mut frame, |lhs,rhs| if rhs == 0 { Err(DivisionByZero) } else { Ok(lhs % rhs) } )),
       Cmp => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs - rhs))), 
+      Neg => try!(unary_op(&mut frame, |op| Ok(-op))),
+      Not => try!(unary_op(&mut frame, |op| Ok(if op == 0 { 1 } else { 0 }))),
+      BitNot => try!(unary_op(&mut frame, |op| Ok(!op))),
+      BitXor => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs ^ rhs))),
+      BitAnd => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs & rhs))),
+      BitOr => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs | rhs))),
       Lit(v) => frame.push(v),
       StParam(reg) => {
         let value = try!(frame.pop());
@@ -132,10 +149,23 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
       LdReg(reg) => {
         let value = try!(frame.load_register(reg));
         frame.push(value);
-      }      
+      },
+      JumpZero(target) => {
+        let value = try!(frame.pop());
+        if value == 0 {
+          frame.next_instruction = target;
+          control_transfer = true;
+        }
+      },
+      Jump(target) => {
+        frame.next_instruction = target;
+        control_transfer = true;
+      }
     }
     debug!("STACK {}",frame.stack);
-    frame.next_instruction = frame.next_instruction + 1;
+    if !control_transfer {
+      frame.next_instruction = frame.next_instruction + 1;
+    }
   }
 
   return Ok(());

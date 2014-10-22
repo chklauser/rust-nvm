@@ -71,3 +71,10 @@ pub fn compute_max_stack_size(routine: &mut Routine) -> AnalysisResult<()> {
 
   Ok(())
 }
+
+pub fn analyze_program(program: &mut Program) -> AnalysisResult<()> {
+  for routine in program.routines.iter_mut() {
+    try!(compute_max_stack_size(routine));
+  }
+  Ok(())
+}

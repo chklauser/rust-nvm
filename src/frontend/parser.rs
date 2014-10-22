@@ -1,10 +1,14 @@
 
-use super::ast::Stmt;
+use super::ast::{Stmt,Program};
 
-use self::toy::body;
+use self::toy::{body,program};
 
 pub fn parse_routine(routine_body_text: &str) -> Result<Vec<Stmt>,String> {
   return body(routine_body_text);
+}
+
+pub fn parse_program(program_text: &str) -> Result<Program,String> {
+  return program(program_text);
 }
 
 peg! toy(r#"
@@ -12,20 +16,58 @@ peg! toy(r#"
 use super::super::ast::*;
 
 #[pub]
+program -> Program
+  = __ ds:(__ d:decl __ { d })* { Program(ds) };
+
+decl -> Decl
+  = "routine" __ id:identifier __ "(" __ args:(identifier ** (__ "," __)) __")" __ "{" 
+    ss:body
+    "}" { Routine(id, args, ss) };
+
+#[pub]
 body -> Vec<Stmt>
   = __ ss:(statement ** (__ ";" __)) __ {ss} ;
 
 statement -> Stmt
   = "while" __ cond:expr "{" body:body "}" { While(cond, body) }
-  / "if" __ cond:expr "{" ifbranch:body "}" __ elsebranch_opt:( "else" __ "{" branch:body "}" { branch } )? { Condition(cond, ifbranch, elsebranch_opt.unwrap_or_else(|| Vec::new())) }
+  / if_condition
   / lhs:identifier __ "<-" __ rhs:expr  { Assign(lhs, rhs) }
+  / "call" __ id:identifier __ "(" __ argv:(arg ** (__ "," __)) __ ")" { RoutineCall(id, argv) };
+
+if_condition -> Stmt
+  = "if" __ cond:expr "{" ifbranch:body "}" __
+     elsebranch_opt:( "else" __ ( "{" branch:body "}" { branch } 
+                                / inner:if_condition  { vec![inner] }) )? { Condition(cond, ifbranch, elsebranch_opt.unwrap_or_else(|| Vec::new())) }
+
+arg -> Arg
+  = "ref" __ id:identifier { ByRef(id) }
+  / e:expr { ByVal(e) }
 
 expr -> Expr
   = e:logicalUnaryExpr { e }
 
 logicalUnaryExpr -> Expr
   = "not" __ e:logicalUnaryExpr __ { Not(box e) }
-  / e:sumExpr { e }
+  / e:cmpExpr { e }
+
+cmpExpr -> Expr
+  = lhs:sumExpr __ right:( "<"  __ rhs:sumExpr __ { (1u8,rhs) }
+                        /  "<=" __ rhs:sumExpr __ { (2u8,rhs) }
+                        /  "==" __ rhs:sumExpr __ { (3u8,rhs) }
+                        /  "!=" __ rhs:sumExpr __ { (4u8,rhs) }
+                        /  ">"  __ rhs:sumExpr __ { (5u8,rhs) }
+                        /  ">=" __ rhs:sumExpr __ { (6u8,rhs) }
+                        /  "" { (7u8,Constant(0)) }
+                        ) { match right {
+                              (1,rhs) => LessThan(box lhs, box rhs),
+                              (2,rhs) => LessThanOrEqualTo(box lhs, box rhs),
+                              (3,rhs) => EqualTo(box lhs, box rhs),
+                              (4,rhs) => NotEqualTo(box lhs, box rhs),
+                              (5,rhs) => GreaterThan(box lhs, box rhs),
+                              (6,rhs) => GreaterThanOrEqualTo(box lhs, box rhs),
+                              _ => lhs,
+                            } 
+                          };
 
 sumExpr -> Expr
   = lhs:productExpr __ "+" __ rhs:sumExpr __ { Addition(box lhs, box rhs) }
@@ -47,6 +89,7 @@ unBinExpr -> Expr
 
 atomExpr -> Expr
   = n:number __ { Constant(n) }
+  / id:identifier __ "(" __ argv:(arg ** (__ "," __)) __ ")" __ { Function(id,argv) } 
   / id:identifier __ { Variable(id) }
   / "(" __ e:expr ")" __ { e }
 
@@ -54,7 +97,7 @@ number -> int
   = [0-9_]+ { from_str::<int>(match_str).unwrap() }
 
 identifier -> String
-  = ([a-zA-Z_][a-zA-Z0-9_]*)!("while"/"if"/"else"/"not") { match_str.to_string() }
+  = ([a-zA-Z_][a-zA-Z0-9_]*)!("while"/"if"/"else"/"not"/"routine"/"call"/"ref") { match_str.to_string() }
 
 // Taken from https://github.com/kevinmehall/rust-peg/blob/master/src/grammar.rustpeg
 __ = (whitespace / eol / comment)*

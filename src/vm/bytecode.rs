@@ -11,6 +11,12 @@ pub enum Instruction {
   Cmp,
   Neg,
   Not,
+  Lt,
+  Le,
+  Gt,
+  Ge,
+  Eq,
+  Ne,
   BitNot,
   BitXor,
   BitAnd,
@@ -21,7 +27,9 @@ pub enum Instruction {
   StReg(RegisterId),
   LdReg(RegisterId),
   JumpZero(uint),
-  Jump(uint)
+  Jump(uint),
+  Call(uint),
+  Pop
 }
 
 impl Instruction {
@@ -45,7 +53,15 @@ impl Instruction {
       StReg(_) => -1,
       LdReg(_) => 1,
       JumpZero(_) => -1,
-      Jump(_) => 0
+      Jump(_) => 0,
+      Call(_) => 0,
+      Lt => -1,
+      Le => -1,
+      Gt => -1,
+      Ge => -1,
+      Eq => -1,
+      Ne => -1,
+      Pop => -1
     }
   }
 }
@@ -66,5 +82,18 @@ impl Routine {
       instructions: instructions,
       max_stack_size: None
     };
+  }
+}
+
+#[deriving(Show,Clone)]
+pub struct Program {
+  pub routines: Vec<Routine>
+}
+
+impl Program {
+  pub fn new() -> Program {
+    Program {
+      routines: Vec::new()
+    }
   }
 }

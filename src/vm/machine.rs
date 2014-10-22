@@ -73,15 +73,22 @@ enum RuntimeError {
   RegisterOutOfRange(uint,uint), //actual, maximum
   DivisionByZero,
   UnsupportedInstruction(Instruction),
-  UnknownError(&'static str)
+  UnknownError(&'static str),
+  RoutineSlotOutOfRange(uint,uint)//actual, maximum
 }
 
-pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<(),RuntimeError> {
+pub fn execute<'a>(program: &Program, routine_slot: uint, parameters: &'a mut [int]) -> Result<(),RuntimeError> {
+  if routine_slot >= program.routines.len() {
+    return Err(RoutineSlotOutOfRange(routine_slot, program.routines.len()));
+  }
+  let routine = &program.routines[routine_slot];
+
   if parameters.len() < routine.num_parameters {
     return Err(NotEnoughParameters(parameters.len(), routine.num_parameters));
   }
 
-  debug!("execute routine({})+{:2u} (instruction count: {})", 
+  debug!("execute routine {}({})+{:2u} (instruction count: {})", 
+    routine_slot,
     parameters, 
     routine.num_registers, 
     routine.instructions.len());
@@ -113,7 +120,7 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
 
   loop {
     if frame.next_instruction >= frame.routine.instructions.len() {
-      debug!("End of routine reached.")
+      debug!("End of routine {} reached.", routine_slot)
       break;
     }
 
@@ -121,6 +128,7 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
     debug!("XINS({:3u})+{:2u} {}", frame.next_instruction, frame.stack.len(), ins);
     let mut control_transfer = false;
     match ins {
+      Pop => { try!(frame.pop()) ; () }
       Add => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs + rhs))),
       Sub => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs - rhs))),
       Mul => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs * rhs))),
@@ -129,6 +137,12 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
       Cmp => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs - rhs))), 
       Neg => try!(unary_op(&mut frame, |op| Ok(-op))),
       Not => try!(unary_op(&mut frame, |op| Ok(if op == 0 { 1 } else { 0 }))),
+      Lt => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs < rhs { 1 } else { 0 } ))),
+      Le => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs <= rhs { 1 } else { 0 } ))),
+      Eq => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs == rhs { 1 } else { 0 } ))),
+      Ne => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs != rhs { 1 } else { 0 } ))),
+      Gt => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs > rhs { 1 } else { 0 } ))),
+      Ge => try!(binary_op(&mut frame, |lhs,rhs| Ok( if lhs >= rhs { 1 } else { 0 } ))),
       BitNot => try!(unary_op(&mut frame, |op| Ok(!op))),
       BitXor => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs ^ rhs))),
       BitAnd => try!(binary_op(&mut frame, |lhs,rhs| Ok(lhs & rhs))),
@@ -160,6 +174,9 @@ pub fn execute<'a>(routine: &'a Routine, parameters: &'a mut [int]) -> Result<()
       Jump(target) => {
         frame.next_instruction = target;
         control_transfer = true;
+      },
+      Call(slot) => {
+        try!(execute(program, slot, frame.registers.as_mut_slice()));        
       }
     }
     debug!("STACK {}",frame.stack);

@@ -7,7 +7,7 @@ use super::bytecode::*;
 struct StackFrame<'a> {
   parameters: &'a mut [int],
   registers: Vec<int>,
-  stack: Vec<int>,
+  stack_ptr: uint,
   next_instruction: uint,
   routine: &'a Routine
 }
@@ -15,12 +15,18 @@ struct StackFrame<'a> {
 impl<'a> StackFrame<'a> {
   #[inline]
   fn pop(&mut self) -> Result<int,RuntimeError> {
-    return self.stack.pop().ok_or_else(|| StackUnderflow);
+    if self.stack_ptr == self.routine.num_registers {
+      return Err(StackUnderflow);
+    }
+    let v = self.registers[self.stack_ptr-1];
+    self.stack_ptr -= 1;
+    Ok(v)
   }
 
   #[inline]
   fn push(&mut self, v:int) {
-    self.stack.push(v);
+    self.registers[self.stack_ptr] = v;
+    self.stack_ptr += 1;
   }
 
   fn store_parameter(&mut self, parameter_name: RegisterId, value: int) -> Result<(),RuntimeError> {
@@ -44,21 +50,23 @@ impl<'a> StackFrame<'a> {
   }
    
   fn store_register(&mut self, register_name: RegisterId, value: int) -> Result<(),RuntimeError> {
-    if register_name >= self.registers.len() {
-      return Err(RegisterOutOfRange(register_name, self.registers.len()));
+    let trname = register_name;
+    if trname >= self.registers.len() {
+      return Err(RegisterOutOfRange(trname, self.registers.len()));
     } else {
-      self.registers[register_name] = value;
-      debug!("STOR REG {:3u} <- {}",register_name, value);
+      self.registers[trname] = value;
+      debug!("STOR REG {:3u} <- {}",trname, value);
       return Ok(());
     }
   }
 
   fn load_register(&mut self, register_name: RegisterId) -> Result<int, RuntimeError> {
-    if register_name >= self.registers.len() {
-      return Err(RegisterOutOfRange(register_name, self.registers.len()));
+    let trname = register_name;
+    if trname >= self.registers.len() {
+      return Err(RegisterOutOfRange(trname, self.registers.len()));
     } else {
-      let value = self.registers[register_name];
-      debug!("LOAD REG {:3u} = {}",register_name, value);
+      let value = self.registers[trname];
+      debug!("LOAD REG {:3u} = {}",trname, value);
       return Ok(value);
     }
   }
@@ -74,7 +82,8 @@ enum RuntimeError {
   DivisionByZero,
   UnsupportedInstruction(Instruction),
   UnknownError(&'static str),
-  RoutineSlotOutOfRange(uint,uint)//actual, maximum
+  RoutineSlotOutOfRange(uint,uint),//actual, maximum
+  StackSizeUnknown(uint)
 }
 
 pub fn execute<'a>(program: &Program, routine_slot: uint, parameters: &'a mut [int]) -> Result<(),RuntimeError> {
@@ -94,13 +103,13 @@ pub fn execute<'a>(program: &Program, routine_slot: uint, parameters: &'a mut [i
     routine.instructions.len());
   let mut frame = StackFrame {
     parameters: parameters,
-    registers: Vec::from_elem(routine.num_registers, 0),
-    stack: match routine.max_stack_size {
-      Some(max) => Vec::with_capacity(max),
-      None => Vec::new()
-    },
+    registers: Vec::from_elem(
+        routine.num_registers 
+        + try!(routine.max_stack_size.ok_or_else(|| StackSizeUnknown(routine_slot))), 
+      0),
     next_instruction: 0,
-    routine: routine
+    routine: routine,
+    stack_ptr: routine.num_registers
   };
 
   #[inline]
@@ -125,7 +134,7 @@ pub fn execute<'a>(program: &Program, routine_slot: uint, parameters: &'a mut [i
     }
 
     let ins = frame.routine.instructions[frame.next_instruction];
-    debug!("XINS({:3u})+{:2u} {}", frame.next_instruction, frame.stack.len(), ins);
+    debug!("XINS({:3u})+{:2u} {}", frame.next_instruction, frame.routine.max_stack_size.unwrap(), ins);
     let mut control_transfer = false;
     match ins {
       Pop => { try!(frame.pop()) ; () }
@@ -179,7 +188,7 @@ pub fn execute<'a>(program: &Program, routine_slot: uint, parameters: &'a mut [i
         try!(execute(program, slot, frame.registers.as_mut_slice()));        
       }
     }
-    debug!("STACK {}",frame.stack);
+    debug!("STACK {}",frame.registers.slice_to(frame.stack_ptr));
     if !control_transfer {
       frame.next_instruction = frame.next_instruction + 1;
     }

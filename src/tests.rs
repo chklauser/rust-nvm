@@ -372,18 +372,6 @@ fn bench_run_gen_memo_fib8(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_run_gen_memo_fib8_dystack(b: &mut Bencher) {
-  let mut program = fib::gen_fib_routine(8).unwrap();
-  let control = fib::control_fib(8,1,1);
-  program.routines[0].max_stack_size = None;
-  b.iter(|| {
-    let mut params = [0,1,1];
-    vm::machine::execute(&program, 0, &mut params).unwrap();
-    assert_eq!(params[0],control);
-  })
-}
-
-#[bench]
 fn bench_run_control_fib100(b: &mut Bencher) {
   b.iter(|| test::black_box(fib::control_fib(100,1,1)));
 }

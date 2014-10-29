@@ -2,11 +2,11 @@
 name = "nvm"
 version = "0.0.1"
 dependencies = [
- "peg 0.1.0 (git+https://github.com/kevinmehall/rust-peg.git#04c307ac857bb0c5e1b4a990a7be6b523db0d830)",
+ "peg 0.1.0 (git+https://github.com/kevinmehall/rust-peg.git)",
 ]
 
 [[package]]
 name = "peg"
 version = "0.1.0"
-source = "git+https://github.com/kevinmehall/rust-peg.git#04c307ac857bb0c5e1b4a990a7be6b523db0d830"
+source = "git+https://github.com/kevinmehall/rust-peg.git#69227a61f866590d4e849cfcd8f169fdc5ce59cb"
 

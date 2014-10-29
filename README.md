@@ -106,3 +106,5 @@ History
 While the stack-based representation (instruction) is much smaller (no need to specify input output locations), it requires us to have both a local variable store *and* an evaluation stack. This means two separate allocations per call. Currently both the local variable store and the evaluation stack need to be allocated on the heap, because Rust has no mechanism for allocating dynamically sized arrays on the stack (`alloca`).
 
 For call-heavy programs, the register-based machine completes in about 60% of the time that the stack-based machine takes. The number of instructions involved is about the same since the compiler just uses the lower region of the local variable store to simulate an evaluation stack.
+
+Changing the stack-based machine in such a way that it allocates one big store for both registers (at the low end) and the stack (at the high end) reduces the speed difference to about 75-80%. That code lives in the stack_machine branch.

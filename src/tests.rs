@@ -5,6 +5,26 @@ use super::vm;
 use test::Bencher;
 use test;
 
+macro_rules! testprogram(
+  ([$($p:expr),*],$program:expr) => ({
+    let mut params = [$($p),*];
+    runprorgam($program, params);
+    params
+  })
+)
+
+#[test]
+fn add() {
+  let results = testprogram!([0,16,19], r#"
+    routine main(result, a, b) {
+      result <- a + b
+    }
+    "#);
+  assert_eq!(results[0],16+19);
+  assert_eq!(results[1],16);
+  assert_eq!(results[2],19);
+}
+
 #[test]
 fn sample() {
   let main = frontend::compile_function("main".to_string(), vec!["return", "x"].as_slice(), 
@@ -259,16 +279,17 @@ mod fib {
       program
     }
     return match n {
-      0 => Ok(as_program(bytecode::Routine::new(1,0,vec![
-        bytecode::Lit(0), 
-        bytecode::StParam(0)]))),
-      1 => Ok(as_program(bytecode::Routine::new(2,0,vec![
-        bytecode::LdParam(1), 
-        bytecode::StParam(0)]))),
-      2 => Ok(as_program(bytecode::Routine::new(3,0,vec![
-        bytecode::LdParam(1), 
-        bytecode::LdParam(2), 
-        bytecode::StParam(0)]))),
+      0 => Ok(as_program(bytecode::Routine::new(String::from_str("fib0"),1,0,vec![
+        bytecode::Lit(0,0), 
+        bytecode::StParam(0,0)]))),
+      1 => Ok(as_program(bytecode::Routine::new(String::from_str("fib1"),2,0,vec![
+        bytecode::LdParam(0,1), 
+        bytecode::StParam(0,0)]))),
+      2 => Ok(as_program(bytecode::Routine::new(String::from_str("fib2"),3,0,vec![
+        bytecode::LdParam(0,1), 
+        bytecode::LdParam(1,2), 
+        bytecode::Add(0,1),
+        bytecode::StParam(0,0)]))),
       n => {
         // F_1 <- P_1
         // F_2 <- P_2
@@ -367,18 +388,6 @@ fn bench_run_gen_memo_fib8(b: &mut Bencher) {
   b.iter(|| {
     let mut params = [0,1,1];
     vm::machine::execute(&routine, 0, &mut params).unwrap();
-    assert_eq!(params[0],control);
-  })
-}
-
-#[bench]
-fn bench_run_gen_memo_fib8_dystack(b: &mut Bencher) {
-  let mut program = fib::gen_fib_routine(8).unwrap();
-  let control = fib::control_fib(8,1,1);
-  program.routines[0].max_stack_size = None;
-  b.iter(|| {
-    let mut params = [0,1,1];
-    vm::machine::execute(&program, 0, &mut params).unwrap();
     assert_eq!(params[0],control);
   })
 }

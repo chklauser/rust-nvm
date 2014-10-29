@@ -98,3 +98,11 @@ Known Issues
  * Associativity in arithemtic expressions is not handled correctly (`5-2+1` results in 2 and not 4)
  * Couldn't figure out a way to allocate the evaluation stack and local variable store on Rust's stack. The local variable store size is known and remains constant for each routine. I would like to do `[0, .. store_size]` but Rust doesn't seem to support allocating arrays on the stack when their size is not known statically.
  * Register allocation and code generation is very, very inefficient
+
+History
+-------
+
+### 2014-10-29 Drop stack machine in favour of register machine
+While the stack-based representation (instruction) is much smaller (no need to specify input output locations), it requires us to have both a local variable store *and* an evaluation stack. This means two separate allocations per call. Currently both the local variable store and the evaluation stack need to be allocated on the heap, because Rust has no mechanism for allocating dynamically sized arrays on the stack (`alloca`).
+
+For call-heavy programs, the register-based machine completes in about 60% of the time that the stack-based machine takes. The number of instructions involved is about the same since the compiler just uses the lower region of the local variable store to simulate an evaluation stack.

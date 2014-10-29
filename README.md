@@ -1,13 +1,13 @@
 Native Virtual Machine
 ======================
 
-A toy virtual machine executing a stack-based byte code.
+A toy virtual machine executing a register-based "byte code".
 
 And since I'm too lazy to write byte code programs myself, I also included a toy compiler for a toy language.
 
 The Toy Language
 ----------------
-A simple procedural structured programming language. It only handles integers and integer arithmetic and comparison.
+A simple procedural structured programming language. It only handles integers, integer arithmetic and comparison.
 
 Routines have a number of named parameters. Any name used in a routine, that is not a parameter is assumed to be the name of a local variable. Arguments can be passed by value (default) or by reference (`ref`).
 
@@ -48,7 +48,7 @@ We currently use a virtual machine that uses one local variable store per stack 
 
 Additionally, each stack frame also has access to a parameter store that is supplied by the caller (`&mut` in Rust). When one toy routine calls another, it supplies it's own local variable store as the parameter store.
 
-A compiler pass analyses each routine to allocate enough "call registers" at the beginning of the local variable store, so that routine calls do not interfere with actual local variables.
+A compiler pass analyses each routine to allocate enough "call and evaluation registers" at the beginning of the local variable store, so that routine calls do not interfere with actual local variables.
 
 Instructions operate on local variables ("registers") and one of the operands is used as the destination for instruction output (similar to x86). "Two-Address-Code" if you want.
 
@@ -77,7 +77,7 @@ will be translated into something similar to the following
   1: (stack/call param)
   2: (stack/call param)
   3: (stack)
-  3: v
+  4: v
 // instructions
   // v <- 7
   00: LIT r0 <- "7"
@@ -107,4 +107,4 @@ While the stack-based representation (instruction) is much smaller (no need to s
 
 For call-heavy programs, the register-based machine completes in about 60% of the time that the stack-based machine takes. The number of instructions involved is about the same since the compiler just uses the lower region of the local variable store to simulate an evaluation stack.
 
-Changing the stack-based machine in such a way that it allocates one big store for both registers (at the low end) and the stack (at the high end) reduces the speed difference to about 75-80%. That code lives in the stack_machine branch.
+Changing the stack-based machine in such a way that it allocates one big store for both registers (at the low end) and the stack (at the high end) reduces the speed difference to about 75-80%. That code lives in the `stack_machine` branch.

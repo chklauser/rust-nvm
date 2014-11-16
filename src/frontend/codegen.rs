@@ -27,11 +27,11 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
     return self.instructions.len();
   }
 
-  fn resolve(&self, name: &str) -> CodeGenResult<SymbolResolution> {
-    return self.register_map.find_equiv(&name)
+  fn resolve(&self, name: &'a str) -> CodeGenResult<SymbolResolution> {
+    return self.register_map.get(&name)
       .map_or_else(
         // No register found, try parameter
-        ||self.parameter_map.find_equiv(&name).map(|v| Parameter(*v)) , 
+        ||self.parameter_map.get(&name).map(|v| Parameter(*v)) , 
         // Some register found
         |v| Some(Register(*v)))
       .ok_or_else(||UnresolvedSymbol(name.to_string()));
@@ -543,7 +543,7 @@ impl<'p> ProgramContext<'p> {
   }
 
   fn lookup_routine_info(&self, name: &'p str) -> Option<&RoutineInfo> {
-    self.routine_map.find(&name)
+    self.routine_map.get(&name)
   }
 
   fn compile_routine_body<'a>(&self, routine: &mut bytecode::Routine,
@@ -605,7 +605,7 @@ pub fn compile_program(decls: &[Decl]) -> CodeGenResult<Program> {
   for decl in decls.iter() {
     match decl {
       &ast::Routine(ref name,ref parameter_names, ref stmts) => { 
-        let info = try!(ctx.routine_map.find(&name.as_slice())
+        let info = try!(ctx.routine_map.get(&name.as_slice())
           .ok_or(InternalError("Can't find routine info that I created milliseconds ago.")));
         debug_assert_eq!(program.routines.len(),info.slot);
 

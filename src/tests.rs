@@ -298,7 +298,7 @@ mod fib {
         let mut body = r#""#.to_string();
         let write_var = |body: &mut String, i: uint| {
           match i {
-            0 => fail!("F0 does not exist"),
+            0 => panic!("F0 does not exist"),
             1 => body.push('a'),
             2 => body.push('b'),
             k if k == n => body.push_str("return"),

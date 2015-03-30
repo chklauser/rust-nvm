@@ -44,9 +44,9 @@ routine max(result, x,y) {
 
 Execution Engine
 ----------------
-We currently use a virtual machine that uses one local variable store per stack frame, accessed by a variable index. 
+The virtual machine uses one local variable store per stack frame, accessed by an integer index. 
 
-Additionally, each stack frame also has access to a parameter store that is supplied by the caller (`&mut` in Rust). When one toy routine calls another, it supplies it's own local variable store as the parameter store.
+Additionally, each stack frame also has access to a parameter store that is supplied by the caller (`&mut` in Rust). When one toy routine calls another, it supplies it's own local variable store as the parameter store of the callee. That way, an `n`-routines deep call stack requires only `n+1` variable/parameter stores.
 
 A compiler pass analyses each routine to allocate enough "call and evaluation registers" at the beginning of the local variable store, so that routine calls do not interfere with actual local variables.
 
@@ -54,7 +54,7 @@ Instructions operate on local variables ("registers") and one of the operands is
 
 Compiler
 --------
-The compiler for the toy language is very basic. In addition to slots for ordinary local variables, it allocates a number of slots for both call arguments as well also as "registers" to use for evaluating expressions.
+The compiler for the toy language is very basic. In addition to slots for ordinary local variables, it allocates a number of slots for both call arguments as well as "registers" to use for evaluating expressions.
 
 The register allocation algorithm is extremely primitive. It simulates an evaluation stack in the lower part of the local variable store and treats actual local variables as a separate namespace.
 

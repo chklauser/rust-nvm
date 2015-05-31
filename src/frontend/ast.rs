@@ -1,5 +1,6 @@
 
-#[deriving(Clone,Show,Eq,PartialEq)]
+#[derive(Clone,Display,Debug,Eq,PartialEq)]
+#[allow(unused_attributes)]
 pub enum Expr {
   Addition(Box<Expr>,Box<Expr>),
   Subtraction(Box<Expr>,Box<Expr>),
@@ -15,17 +16,19 @@ pub enum Expr {
   GreaterThanOrEqualTo(Box<Expr>,Box<Expr>),
   Not(Box<Expr>),
   Variable(String),
-  Constant(int),
+  Constant(isize),
   Function(String, Vec<Arg>) // one return register baked in
 }
 
-#[deriving(Clone,Show,Eq,PartialEq)]
+#[derive(Clone,Display,Debug,Eq,PartialEq)]
+#[allow(unused_attributes)]
 pub enum Arg {
   ByVal(Expr),
   ByRef(String)
 }
 
-#[deriving(Show,PartialEq,Eq,Clone)]
+#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[allow(unused_attributes)]
 pub enum Stmt {
   Assign(String, Expr),
   While(Expr,Vec<Stmt>),
@@ -33,11 +36,13 @@ pub enum Stmt {
   RoutineCall(String, Vec<Arg>)
 }
 
-#[deriving(Show,PartialEq,Eq,Clone)]
+#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[allow(unused_attributes)]
 pub enum Decl {
   // Routine name, parameters, body
   Routine(String, Vec<String>, Vec<Stmt>)
 }
 
-#[deriving(Show,PartialEq,Eq,Clone)]
+#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[allow(unused_attributes)]
 pub struct Program(pub Vec<Decl>);

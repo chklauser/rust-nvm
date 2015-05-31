@@ -1,11 +1,13 @@
 
-pub type RegisterId = uint;
-pub type ParameterId = uint;
+pub type RegisterId = usize;
+pub type ParameterId = usize;
+
 
 // Two-Address-Code (for those operations that require two operands)
 //  * both operands must be registers
 //  * first/left operand is also destination register
-#[deriving(Show,PartialEq,Eq,Clone)]
+#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[allow(unused_attributes)]
 pub enum Instruction {
   Add(RegisterId,RegisterId),
   Sub(RegisterId,RegisterId),
@@ -25,25 +27,26 @@ pub enum Instruction {
   BitXor(RegisterId,RegisterId),
   BitAnd(RegisterId,RegisterId),
   BitOr(RegisterId,RegisterId),
-  Lit(RegisterId, int),
+  Lit(RegisterId, isize),
   StParam(ParameterId, RegisterId),
   LdParam(RegisterId,ParameterId),
   Mov(RegisterId,RegisterId),
-  JumpZero(uint, RegisterId),
-  Jump(uint),
-  Call(RegisterId, uint) // Name of first register that is part of arguments; routine ID
+  JumpZero(usize, RegisterId),
+  Jump(usize),
+  Call(RegisterId, usize) // Name of first register that is part of arguments; routine ID
 }
 
-#[deriving(Show,Clone)]
+#[derive(Display,Debug,Clone)]
+#[allow(unused_attributes)]
 pub struct Routine {
   pub name: String,
-  pub num_parameters: uint,
-  pub num_registers: uint,
+  pub num_parameters: usize,
+  pub num_registers: usize,
   pub instructions: Vec<Instruction>  
 }
 
 impl Routine {
-  pub fn new(name: String, num_parameters: uint, num_registers: uint, instructions: Vec<Instruction>) -> Routine {
+  pub fn new(name: String, num_parameters: usize, num_registers: usize, instructions: Vec<Instruction>) -> Routine {
     return Routine {
       num_parameters: num_parameters,
       num_registers: num_registers,
@@ -53,7 +56,8 @@ impl Routine {
   }
 }
 
-#[deriving(Show,Clone)]
+#[derive(Display,Debug,Clone)]
+#[allow(unused_attributes)]
 pub struct Program {
   pub routines: Vec<Routine>
 }

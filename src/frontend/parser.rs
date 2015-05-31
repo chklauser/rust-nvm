@@ -2,18 +2,33 @@
 use super::ast::{Stmt,Program};
 
 use self::toy::{body,program};
+pub use self::toy::ParseError;
 
-pub fn parse_routine(routine_body_text: &str) -> Result<Vec<Stmt>,String> {
+use super::FrontendError;
+
+impl From<ParseError> for FrontendError {
+  fn from(s: ParseError) -> FrontendError {
+    FrontendError::FeParserError(s)
+  }
+}
+
+pub fn parse_routine(routine_body_text: &str) -> Result<Vec<Stmt>,ParseError> {
   return body(routine_body_text);
 }
 
-pub fn parse_program(program_text: &str) -> Result<Program,String> {
+pub fn parse_program(program_text: &str) -> Result<Program,ParseError> {
   return program(program_text);
 }
 
 peg! toy(r#"
 
 use super::super::ast::*;
+use super::super::ast::Decl::*;
+use super::super::ast::Expr::*;
+use super::super::ast::Stmt::*;
+use super::super::ast::Arg::*;
+
+use std::result::Result;
 
 #[pub]
 program -> Program
@@ -93,8 +108,8 @@ atomExpr -> Expr
   / id:identifier __ { Variable(id) }
   / "(" __ e:expr ")" __ { e }
 
-number -> int
-  = [0-9_]+ { from_str::<int>(match_str).unwrap() }
+number -> isize
+  = [0-9_]+ { isize::from_str_radix(match_str, 10).unwrap() }
 
 identifier -> String
   = ([a-zA-Z_][a-zA-Z0-9_]*)!("while"/"if"/"else"/"not"/"routine"/"call"/"ref") { match_str.to_string() }
@@ -127,7 +142,7 @@ eolChar
 whitespace
   = [ \t\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] // \v\f removed
 
-"#)
+"#);
 
 
 

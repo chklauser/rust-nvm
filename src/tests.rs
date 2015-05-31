@@ -5,13 +5,13 @@ use super::vm;
 use test::Bencher;
 use test;
 
-macro_rules! testprogram(
+macro_rules! testprogram{
   ([$($p:expr),*],$program:expr) => ({
     let mut params = [$($p),*];
     runprorgam($program, params);
     params
   })
-)
+}
 
 #[test]
 fn add() {
@@ -151,15 +151,15 @@ fn run_fib_iter8() {
   assert_eq!(params[1],n);
   assert_eq!(params[2],a);
   assert_eq!(params[3],b);
-  assert_eq!(params[0],fib::control_fib(n as uint,a,b));
+  assert_eq!(params[0],fib::control_fib(n as usize,a,b));
 }
 
-fn runprorgam(text: &str, params: &mut [int]) {
-  debug!("Compiling program text")
+fn runprorgam(text: &str, params: &mut [isize]) {
+  debug!("Compiling program text");
   let program = frontend::compile_program(text).unwrap();
-  debug!("Executing program")
+  debug!("Executing program");
   vm::machine::execute(&program, 0,params).unwrap();
-  debug!("Verifying result")
+  debug!("Verifying result");
 }
 
 #[test]
@@ -271,7 +271,7 @@ mod fib {
   use std::iter::range_inclusive;
 
   // generates a routine that computes n iterations of fibonacci over 2 initial parameters
-  pub fn gen_fib_routine(n:uint) -> frontend::FrontendResult<vm::bytecode::Program> {
+  pub fn gen_fib_routine(n:usize) -> frontend::FrontendResult<vm::bytecode::Program> {
     debug!("Generating fibonacci function for N={:u}",n);
     fn as_program(routine: vm::bytecode::Routine) -> vm::bytecode::Program {
       let mut program = vm::bytecode::Program::new();
@@ -296,7 +296,7 @@ mod fib {
         // F_i <- F_{i-1} + F_{i-2} for 2 < i < n
         // P_0 <- F_{n-1} + F_{n-2}
         let mut body = r#""#.to_string();
-        let write_var = |body: &mut String, i: uint| {
+        let write_var = |body: &mut String, i: usize| {
           match i {
             0 => panic!("F0 does not exist"),
             1 => body.push('a'),
@@ -328,7 +328,7 @@ mod fib {
     }
   }
 
-  pub fn control_fib(n: uint, a: int, b: int) -> int{
+  pub fn control_fib(n: usize, a: isize, b: isize) -> isize{
     return match n {
       0 => 0,
       1 => a,

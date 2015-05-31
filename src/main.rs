@@ -1,17 +1,12 @@
-#![feature(phase)]
-#![feature(globs)]
-#![feature(macro_rules)]
+#![feature(custom_derive,box_syntax,collections)]
+#![feature(plugin)]
+#![plugin(peg_syntax_ext)]
 
-#[phase(plugin, link)] 
+#[macro_use]
 extern crate log;
-#[phase(plugin)]
-extern crate peg_syntax_ext;
 
 #[cfg(test)]
 extern crate test;
-
-#[macro_escape]
-mod util;
 
 mod vm;
 mod frontend;

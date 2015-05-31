@@ -5,6 +5,9 @@ version = "0.0.1"
 authors = ["klauser"]
 
 # written with rustc 0.13.0
+[dependencies]
+log = "*"
+env_logger = "*"
 
 [dependencies.peg]
 git = "https://github.com/kevinmehall/rust-peg.git"

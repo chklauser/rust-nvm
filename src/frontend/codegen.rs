@@ -1,16 +1,48 @@
 
 use std::collections::{HashMap,HashSet};
 use std::cmp::max;
-use std::iter::Repeat;
+use std::iter::{repeat,FromIterator};
 
+use super::FrontendError;
 use super::ast::*;
-use super::ast;
-use super::super::vm::bytecode::*;
-use super::super::vm::bytecode;
+use super::ast::Decl::*;
+use super::ast::Expr::*;
+use super::ast::Stmt::*;
+use super::ast::Arg::*;
+use super::super::vm::bytecode::{Instruction,self,RegisterId};
+
+#[allow(unused_imports)]
+use super::super::vm::bytecode::Instruction::{
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Rem,
+  Cmp,
+  Neg,
+  Lt,
+  Le,
+  Gt,
+  Ge,
+  Eq,
+  Ne,
+  BitNot,
+  BitXor,
+  BitAnd,
+  BitOr,
+  Lit,
+  StParam,
+  LdParam,
+  Mov,
+  JumpZero,
+  Jump,
+  Call 
+};
+use super::super::vm::bytecode::Instruction::Not as BytecodeNot;
 
 struct RoutineContext<'a: 'b, 'b> {
-  parameter_map: HashMap<&'a str, uint>,
-  register_map: HashMap<&'a str, uint>,
+  parameter_map: HashMap<&'a str, usize>,
+  register_map: HashMap<&'a str, usize>,
   instructions: &'a mut Vec<Instruction>,
   program_ctx: &'b ProgramContext<'a>,
   eval_stack_ptr: RegisterId
@@ -18,12 +50,12 @@ struct RoutineContext<'a: 'b, 'b> {
 
 impl<'a, 'b> RoutineContext<'a, 'b> {
   // emits instruction and returns that instruction's address
-  fn emit(&mut self, ins:Instruction) -> uint {
+  fn emit(&mut self, ins:Instruction) -> usize {
     self.instructions.push(ins);
     return self.instructions.len()-1;
   }
 
-  fn next_address(&self) -> uint {
+  fn next_address(&self) -> usize {
     return self.instructions.len();
   }
 
@@ -37,7 +69,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
       .ok_or_else(||UnresolvedSymbol(name.to_string()));
   }
 
-  fn static_eval_stack_min(&self, min: uint) -> CodeGenResult<()> {
+  fn static_eval_stack_min(&self, min: usize) -> CodeGenResult<()> {
     if self.eval_stack_ptr < min {
       Err(InternalError("Underflow of static evaluation stack during compilation."))
     } else {
@@ -71,7 +103,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
   }
 
   fn compile_call(&mut self, routine_name: &str, argv: &[Arg], implicit_return: bool) -> CodeGenResult<()> {
-    let info = try!(self.program_ctx.lookup_routine_info(routine_name.as_slice())
+    let info = try!(self.program_ctx.lookup_routine_info(&routine_name[..])
       .ok_or_else(|| UnresolvedSymbol(routine_name.to_string())));
     let slot = info.slot;
     let num_params = info.num_parameters;
@@ -86,13 +118,13 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
     let mut i = paramoffset;
     self.eval_stack_ptr = self.eval_stack_ptr + paramoffset; // implicit result parameter, if present
     for arg in argv.iter() {
-      debug!("call {}(#{} {}) should end up in register {}",routine_name, i,arg,self.eval_stack_ptr);
+      debug!("call {}(#{} {:?}) should end up in register {}",routine_name, i,arg,self.eval_stack_ptr);
       match arg {
         &ByVal(ref value_expr) => {          
           try!(self.compile_expr(&*value_expr));
         },
         &ByRef(ref name) => {
-          try!(self.emit_load_variable(name[]));
+          try!(self.emit_load_variable(&name[..]));
         }
       }
 
@@ -113,7 +145,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
       let need_to_consume = if i < num_params {            
         match arg {
           &ByRef(ref name) => {
-            try!(self.emit_store_variable(name[]));
+            try!(self.emit_store_variable(&name[..]));
             false
           }
           _ => true
@@ -241,7 +273,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
         self.eval_stack_ptr = self.eval_stack_ptr -1 ;
       },
       &Variable(ref v) => {
-        try!(self.emit_load_variable(v[]));
+        try!(self.emit_load_variable(&v[..]));
       },
       &Constant(v) => {
         let dest = self.eval_stack_ptr;
@@ -254,14 +286,14 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
         let reg = self.eval_stack_ptr-1;
         self.emit(BitNot(reg));
       },
-      &ast::Not(ref e) => {
+      &Not(ref e) => {
         try!(self.compile_expr(&**e));
         try!(self.static_eval_stack_min(1));
         let reg = self.eval_stack_ptr-1;
-        self.emit(Not(reg));
+        self.emit(BytecodeNot(reg));
       }
       &Function(ref name, ref argv) => {
-        try!(self.compile_call(name[], argv[], true));
+        try!(self.compile_call(&name[..], &argv[..], true));
       }
     };
     return Ok(());
@@ -272,7 +304,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
       match stmt {
         &Assign(ref var,ref rhs) => {          
           try!(self.compile_expr(rhs));
-          try!(self.emit_store_variable(var[]));
+          try!(self.emit_store_variable(&var[..]));
         },
         &Condition(ref cond, ref ifbranch, ref elsebranch) => {
           //        <cond>
@@ -289,10 +321,10 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
           let cond_jump_addr = self.emit(JumpZero(0,cond_reg));          
           self.eval_stack_ptr = cond_reg;
 
-          try!(self.compile_stmts(ifbranch.as_slice()));          
+          try!(self.compile_stmts(&ifbranch[..]));          
           let skip_else_jump_addr = self.emit(Jump(0));
           self.instructions[cond_jump_addr] = JumpZero(self.next_address(),cond_reg);
-          try!(self.compile_stmts(elsebranch.as_slice()));
+          try!(self.compile_stmts(&elsebranch[..]));
           self.instructions[skip_else_jump_addr] = Jump(self.next_address());
 
           // Yes, there are many cases that could be optimized here
@@ -309,14 +341,14 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
           // once we patch the correct address back in.
           let init_jump_addr = self.emit(Jump(0)); 
           let loop_addr = self.next_address();
-          try!(self.compile_stmts(loop_body.as_slice()));
+          try!(self.compile_stmts(&loop_body[..]));
           let continue_addr = self.next_address();
           try!(self.compile_expr(cond));
           if self.eval_stack_ptr == 0 {
             return Err(InternalError("Underflow of static evaluation stack during compilation of while condition."));
           }
           let expr_reg = self.eval_stack_ptr - 1;
-          self.emit(Not(expr_reg));
+          self.emit(BytecodeNot(expr_reg));
           self.emit(JumpZero(loop_addr,expr_reg));
           self.eval_stack_ptr = expr_reg;
 
@@ -324,7 +356,7 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
           self.instructions[init_jump_addr] = Jump(continue_addr);
         },
         &RoutineCall(ref name, ref argv) => {
-          try!(self.compile_call(name[], argv[], false));
+          try!(self.compile_call(&name[..], &argv[..], false));
         }
       }
     }
@@ -333,17 +365,25 @@ impl<'a, 'b> RoutineContext<'a, 'b> {
 }
 
 enum SymbolResolution {
-  Parameter(uint),
-  Register(uint)
+  Parameter(usize),
+  Register(usize)
 }
+use self::SymbolResolution::*;
 
-#[deriving(Show,PartialEq,Eq,Clone)]
+#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[allow(unused_attributes)]
 pub enum CodeGenError {
   UnresolvedSymbol(String),
   UnsupportedExpr(Expr),
   DuplicateName(String),
   InternalError(&'static str),  
-  InsufficientArguments(String, uint,uint) //routine name, actual, expected (minimum)
+  InsufficientArguments(String, usize,usize) //routine name, actual, expected (minimum)
+}
+use self::CodeGenError::*;
+impl From<CodeGenError> for FrontendError {
+  fn from(e: CodeGenError) -> FrontendError {
+    FrontendError::FeCodeGenError(e)
+  }
 }
 
 pub type CodeGenResult<T> = Result<T,CodeGenError>;
@@ -354,34 +394,34 @@ fn infer_register_names<'a,'d>(
     parameter_names: &[&'a str], 
     program_ctx: &'a ProgramContext) 
     -> CodeGenResult<Vec<&'a str>> {
-  debug!("INFER REGISTERS for routine {}({})",routine_name, parameter_names);
+  debug!("INFER REGISTERS for routine {}({:?})",routine_name, parameter_names);
   let (names,max_stack) = try!(list_variables(body, program_ctx));
   let mut names = names;
   for param in parameter_names.iter() {
     names.remove(param);
   }
   let final_register_names : Vec<&str> = FromIterator::from_iter(
-    Repeat::new("<anonymous evaluation stack register>").take(max_stack).chain(
+    repeat("<anonymous evaluation stack register>").take(max_stack).chain(
     names.into_iter()));
-  debug!(" DONE REGISTERS for routine {}({})\n  registers ({}):\n    {}",
+  debug!(" DONE REGISTERS for routine {}({:?})\n  registers ({}):\n    {}",
     routine_name, parameter_names, final_register_names.len(),final_register_names.connect("\n    "));
   return Ok(final_register_names);
 }
 
-fn list_variables<'a: 'p, 'p>(body: &'a[Stmt], program_ctx: &'p ProgramContext<'a>) -> CodeGenResult<(HashSet<&'a str>,uint)> {
+fn list_variables<'a: 'p, 'p>(body: &'a[Stmt], program_ctx: &'p ProgramContext<'a>) -> CodeGenResult<(HashSet<&'a str>,usize)> {
   struct Ctx<'c: 'p, 'p> {
     vars: HashSet<&'c str>,
-    max_stack: uint,
+    max_stack: usize,
     program_ctx: &'p ProgramContext<'c>
   }  
 
-  fn list_vars_in_expr<'b, 'p>(ctx: &mut Ctx<'b,'p>, expr: &'b Expr, occupied_stack: uint) -> CodeGenResult<()> { 
+  fn list_vars_in_expr<'b, 'p>(ctx: &mut Ctx<'b,'p>, expr: &'b Expr, occupied_stack: usize) -> CodeGenResult<()> { 
     // Total stack max stack size when this expression has been computed
     let mut size_for_expr = occupied_stack;
-    debug!("begin {} with stack size {}", expr, size_for_expr);
+    debug!("begin {:?} with stack size {}", expr, size_for_expr);
     match expr {
       &Variable(ref v) => {
-        ctx.vars.insert(v.as_slice());
+        ctx.vars.insert(&v[..]);
         size_for_expr = size_for_expr + 1;
         ()
       },
@@ -446,21 +486,21 @@ fn list_variables<'a: 'p, 'p>(body: &'a[Stmt], program_ctx: &'p ProgramContext<'
       &BinaryNot(ref e) => {
         try!(list_vars_in_expr(ctx, &**e, size_for_expr));
       },
-      &ast::Not(ref e) => {
+      &Not(ref e) => {
         try!(list_vars_in_expr(ctx, &**e, size_for_expr));
       },
       &Function(ref name,ref args) => {
-        try!(list_var_in_call(ctx, name[], args[], size_for_expr, 1));
+        try!(list_var_in_call(ctx, &name[..], &args[..], size_for_expr, 1));
         size_for_expr = size_for_expr + 1;
       }
     }
 
     ctx.max_stack = max(ctx.max_stack, size_for_expr);
-    debug!("  end {} with stack size {} for a max stack size of {}", expr, size_for_expr, ctx.max_stack);
+    debug!("  end {:?} with stack size {} for a max stack size of {}", expr, size_for_expr, ctx.max_stack);
     Ok(())
   }
 
-  fn list_var_in_call<'b,'p>(ctx: &mut Ctx<'b,'p>, routine_name: &str, argv: &'b [Arg], occupied_stack: uint, implicit_arguments: uint) -> CodeGenResult<()> {
+  fn list_var_in_call<'b,'p>(ctx: &mut Ctx<'b,'p>, routine_name: &str, argv: &'b [Arg], occupied_stack: usize, implicit_arguments: usize) -> CodeGenResult<()> {
     let num_params = try!(
       ctx.program_ctx.lookup_routine_info(routine_name).map(|x| x.num_parameters)
         .ok_or_else(|| UnresolvedSymbol(routine_name.to_string())));
@@ -472,7 +512,7 @@ fn list_variables<'a: 'p, 'p>(body: &'a[Stmt], program_ctx: &'p ProgramContext<'
           try!(list_vars_in_expr(ctx, &*e, stack_size));
         },
         &ByRef(ref v) => {
-          ctx.vars.insert(v.as_slice());
+          ctx.vars.insert(&v[..]);
         }
       }
       // Reserve slot on stack for argument N
@@ -488,20 +528,20 @@ fn list_variables<'a: 'p, 'p>(body: &'a[Stmt], program_ctx: &'p ProgramContext<'
     for stmt in stmts.iter() {
       match stmt {
         &Assign(ref lhs, ref rhs) => {
-          ctx.vars.insert(lhs.as_slice());
+          ctx.vars.insert(&lhs[..]);
           try!(list_vars_in_expr(ctx,rhs,0));
         },
         &Condition(ref cond, ref ifbranch, ref elsebranch) => {
           try!(list_vars_in_expr(ctx, cond,0));
-          try!(list_vars_in_stmts(ctx, ifbranch.as_slice()));
-          try!(list_vars_in_stmts(ctx, elsebranch.as_slice()));
+          try!(list_vars_in_stmts(ctx, &ifbranch[..]));
+          try!(list_vars_in_stmts(ctx, &elsebranch[..]));
         }
         &While(ref cond, ref loop_body) => {
           try!(list_vars_in_expr(ctx, cond,0));
-          try!(list_vars_in_stmts(ctx, loop_body.as_slice()))
+          try!(list_vars_in_stmts(ctx, &loop_body[..]))
         },
         &RoutineCall(ref name, ref argv) => {
-          try!(list_var_in_call(ctx, name[], argv[], 0, 0));
+          try!(list_var_in_call(ctx, &name[..], &argv[..], 0, 0));
         }
       }
     }
@@ -525,9 +565,9 @@ pub fn compile_isolated_routine<'a>(
 -> CodeGenResult<bytecode::Routine> {
   let ctx = ProgramContext::new();
   let routine_name = String::from_str("main");
-  let register_names = try!(infer_register_names(routine_name[], body, parameter_names, &ctx));
+  let register_names = try!(infer_register_names(&routine_name[..], body, parameter_names, &ctx));
   let mut routine = bytecode::Routine::new(routine_name, parameter_names.len(), register_names.len(), Vec::new());
-  try!(ctx.compile_routine_body(&mut routine, parameter_names, register_names.as_slice(), body));
+  try!(ctx.compile_routine_body(&mut routine, parameter_names, &register_names[..], body));
   Ok(routine)
 }
 
@@ -551,9 +591,9 @@ impl<'p> ProgramContext<'p> {
     register_names: &'a[&str], 
     body: &[Stmt]) 
   -> CodeGenResult<()> {
-    fn compute_map<'a>(names: &'a[&str]) -> HashMap<&'a str,uint> {
+    fn compute_map<'a>(names: &'a[&str]) -> HashMap<&'a str,usize> {
       let mut map = HashMap::new();
-      let mut i : uint = 0;
+      let mut i : usize = 0;
       for name in names.iter() {
         map.insert(*name, i);
         i = i + 1;
@@ -575,20 +615,20 @@ impl<'p> ProgramContext<'p> {
 }
 
 struct RoutineInfo {
-  slot: uint,
-  num_parameters: uint
+  slot: usize,
+  num_parameters: usize
 }
 
-pub fn compile_program(decls: &[Decl]) -> CodeGenResult<Program> {
-  let mut program = Program::new();
+pub fn compile_program(decls: &[Decl]) -> CodeGenResult<bytecode::Program> {
+  let mut program = bytecode::Program::new();
   let mut ctx = ProgramContext::new();
 
   // Forward declare stuff
   let mut next_slot = 0;
   for decl in decls.iter() {
     match decl {
-      &ast::Routine(ref name,ref parameter_names,_) => {        
-        let key = name.as_slice();
+      &Routine(ref name,ref parameter_names,_) => {        
+        let key = &name[..];
         if ctx.routine_map.contains_key(&key) {
           return Err(DuplicateName(name.to_string()));
         }
@@ -604,22 +644,22 @@ pub fn compile_program(decls: &[Decl]) -> CodeGenResult<Program> {
   // Gen code
   for decl in decls.iter() {
     match decl {
-      &ast::Routine(ref name,ref parameter_names, ref stmts) => { 
-        let info = try!(ctx.routine_map.get(&name.as_slice())
+      &Routine(ref name,ref parameter_names, ref stmts) => { 
+        let info = try!(ctx.routine_map.get(&name[..])
           .ok_or(InternalError("Can't find routine info that I created milliseconds ago.")));
         debug_assert_eq!(program.routines.len(),info.slot);
 
         // We expect a string slice vector but have a vector to the real thing. 
         // Unfortunately, we need to create a vector that contains just the slices
-        let pnames : Vec<&str> = FromIterator::from_iter(parameter_names.iter().map(|x| x.as_slice()));
+        let pnames : Vec<&str> = FromIterator::from_iter(parameter_names.iter().map(|x| &x[..]));
 
         // Prepare routine for compilation (compute registers)
-        let register_names = try!(infer_register_names(name[], stmts.as_slice(), pnames.as_slice(), &ctx));
+        let register_names = try!(infer_register_names(&name[..], &stmts[..], &pnames[..], &ctx));
         let mut routine = bytecode::Routine::new(
           name.clone(), parameter_names.len(), register_names.len(), Vec::new());
 
         // Compile routine
-        try!(ctx.compile_routine_body(&mut routine, pnames.as_slice(), register_names.as_slice(), stmts.as_slice()));
+        try!(ctx.compile_routine_body(&mut routine, &pnames[..], &register_names[..], &stmts[..]));
 
         // Store routine in program
         program.routines.push(routine);

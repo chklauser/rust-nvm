@@ -2,11 +2,48 @@
 name = "nvm"
 version = "0.0.1"
 dependencies = [
- "peg 0.1.0 (git+https://github.com/kevinmehall/rust-peg.git)",
+ "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "peg 0.3.0 (git+https://github.com/kevinmehall/rust-peg.git)",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "log 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.1.33 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "libc"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "log"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "peg"
-version = "0.1.0"
-source = "git+https://github.com/kevinmehall/rust-peg.git#4ffe8b68c3437b38a1cc471442a6490fa7039f74"
+version = "0.3.0"
+source = "git+https://github.com/kevinmehall/rust-peg.git#76cfa35901319e88b70a096cf2e13b1be91f4b9f"
+
+[[package]]
+name = "regex"
+version = "0.1.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "regex-syntax 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "regex-syntax"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 

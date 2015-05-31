@@ -1,9 +1,11 @@
-#![feature(custom_derive,box_syntax,collections)]
+#![feature(custom_derive,box_syntax,collections,test)]
 #![feature(plugin)]
 #![plugin(peg_syntax_ext)]
 
 #[macro_use]
 extern crate log;
+
+extern crate env_logger;
 
 #[cfg(test)]
 extern crate test;
@@ -16,6 +18,7 @@ mod tests;
 
 #[cfg(not(test))]
 fn main() {
+  env_logger::init().unwrap();
   println!("Compiling program");
   let program = frontend::compile_program(r#"
     routine main(x) {

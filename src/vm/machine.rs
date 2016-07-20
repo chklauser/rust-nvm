@@ -160,7 +160,7 @@ pub fn execute<'a>(program: &Program, routine_slot: usize, parameters: &'a mut [
 
     let ins = &frame.routine.instructions[frame.next_instruction];
     debug!("{:12} XINS({:3}) {:?}", 
-      (&frame.routine.name[..]).slice_chars(0,min((&frame.routine.name[..]).char_indices().count(),12)), 
+      &(&frame.routine.name[..])[0 .. (min((&frame.routine.name[..]).char_indices().count(),12))], 
       frame.next_instruction, 
       ins);
     let mut control_transfer = false;

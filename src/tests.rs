@@ -319,13 +319,13 @@ mod fib {
       program
     }
     return match n {
-      0 => Ok(as_program(bytecode::Routine::new(String::from_str("fib0"),1,0,vec![
+      0 => Ok(as_program(bytecode::Routine::new("fib0".to_owned(),1,0,vec![
         bytecode::Instruction::Lit(0,0), 
         bytecode::Instruction::StParam(0,0)]))),
-      1 => Ok(as_program(bytecode::Routine::new(String::from_str("fib1"),2,0,vec![
+      1 => Ok(as_program(bytecode::Routine::new("fib1".to_owned(),2,0,vec![
         bytecode::Instruction::LdParam(0,1), 
         bytecode::Instruction::StParam(0,0)]))),
-      2 => Ok(as_program(bytecode::Routine::new(String::from_str("fib2"),3,0,vec![
+      2 => Ok(as_program(bytecode::Routine::new("fib2".to_owned(),3,0,vec![
         bytecode::Instruction::LdParam(0,1), 
         bytecode::Instruction::LdParam(1,2), 
         bytecode::Instruction::Add(0,1),
@@ -348,7 +348,7 @@ mod fib {
             }
           }
         };
-        for i in (3 .. n+1) {
+        for i in 3 .. n+1 {
           if i > 3 {
             body.push_str(";\n");
           }
@@ -377,7 +377,7 @@ mod fib {
       n => {
         let mut fim1 = b; //F_{i-1}
         let mut fim2 = a; //F_{i-2}
-        for _ in (3 .. n+1){
+        for _ in 3 .. n+1 {
           let next = fim1 + fim2;
           fim2 = fim1;
           fim1 = next;

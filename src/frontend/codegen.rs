@@ -404,7 +404,7 @@ fn infer_register_names<'a,'d>(
     repeat("<anonymous evaluation stack register>").take(max_stack).chain(
     names.into_iter()));
   debug!(" DONE REGISTERS for routine {}({:?})\n  registers ({}):\n    {}",
-    routine_name, parameter_names, final_register_names.len(),final_register_names.connect("\n    "));
+    routine_name, parameter_names, final_register_names.len(),final_register_names.join("\n    "));
   return Ok(final_register_names);
 }
 
@@ -564,7 +564,7 @@ pub fn compile_isolated_routine<'a>(
   body: &[Stmt]) 
 -> CodeGenResult<bytecode::Routine> {
   let ctx = ProgramContext::new();
-  let routine_name = String::from_str("main");
+  let routine_name = "main".to_owned();
   let register_names = try!(infer_register_names(&routine_name[..], body, parameter_names, &ctx));
   let mut routine = bytecode::Routine::new(routine_name, parameter_names.len(), register_names.len(), Vec::new());
   try!(ctx.compile_routine_body(&mut routine, parameter_names, &register_names[..], body));

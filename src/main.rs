@@ -1,4 +1,4 @@
-#![feature(custom_derive,box_syntax,collections,test)]
+#![feature(custom_derive,box_syntax,test)]
 #![feature(plugin)]
 #![plugin(peg_syntax_ext)]
 

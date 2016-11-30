@@ -6,7 +6,7 @@ pub type ParameterId = usize;
 // Two-Address-Code (for those operations that require two operands)
 //  * both operands must be registers
 //  * first/left operand is also destination register
-#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[derive(Debug,PartialEq,Eq,Clone)]
 #[allow(unused_attributes)]
 pub enum Instruction {
   Add(RegisterId,RegisterId),
@@ -36,7 +36,7 @@ pub enum Instruction {
   Call(RegisterId, usize) // Name of first register that is part of arguments; routine ID
 }
 
-#[derive(Display,Debug,Clone)]
+#[derive(Debug,Clone)]
 #[allow(unused_attributes)]
 pub struct Routine {
   pub name: String,
@@ -56,7 +56,7 @@ impl Routine {
   }
 }
 
-#[derive(Display,Debug,Clone)]
+#[derive(Debug,Clone)]
 #[allow(unused_attributes)]
 pub struct Program {
   pub routines: Vec<Routine>

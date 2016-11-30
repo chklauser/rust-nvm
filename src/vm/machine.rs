@@ -96,7 +96,7 @@ macro_rules! try_check{
   ($e:expr) => (e)
 }
 
-#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[derive(Debug,PartialEq,Eq,Clone)]
 #[allow(unused_attributes)]
 pub enum RuntimeError {
   StackUnderflow,

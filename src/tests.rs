@@ -2,8 +2,8 @@
 use super::frontend;
 use super::vm;
 
-use test::Bencher;
-use test;
+#[cfg(bench)]
+use test::{Bencher,self};
 
 extern crate env_logger;
 
@@ -417,11 +417,13 @@ mod fib {
   }
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_run_control_fib8(b: &mut Bencher) {
   b.iter(|| test::black_box(fib::control_fib(8,1,1)));
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_run_gen_memo_fib8(b: &mut Bencher) {
   let routine = fib::gen_fib_routine(8).unwrap();
@@ -433,11 +435,13 @@ fn bench_run_gen_memo_fib8(b: &mut Bencher) {
   })
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_run_control_fib92(b: &mut Bencher) {
   b.iter(|| test::black_box(fib::control_fib(92,1,1)));
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_run_gen_memo_fib92(b: &mut Bencher) {
   let routine = fib::gen_fib_routine(92).unwrap();
@@ -449,6 +453,7 @@ fn bench_run_gen_memo_fib92(b: &mut Bencher) {
   })
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_iter_fib8(b: &mut Bencher) {
   let routine = fib::compile_iter_fib().unwrap();
@@ -460,6 +465,7 @@ fn bench_iter_fib8(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_iter_fib92(b: &mut Bencher) {
   let routine = fib::compile_iter_fib().unwrap();
@@ -471,6 +477,7 @@ fn bench_iter_fib92(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_ref_of_params_function(b: &mut Bencher) {
   
@@ -491,6 +498,7 @@ fn bench_ref_of_params_function(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_rec_fib8(b: &mut Bencher) {
   let program = frontend::compile_program(r#"
@@ -513,6 +521,7 @@ fn bench_rec_fib8(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_92_calls(b: &mut Bencher) {
   let mut params = [0,0];
@@ -541,6 +550,7 @@ fn bench_92_calls(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_50_calls(b: &mut Bencher) {
   let mut params = [0,0];
@@ -574,6 +584,7 @@ fn bench_50_calls(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_25_calls(b: &mut Bencher) {
   let mut params = [0,0];
@@ -617,6 +628,7 @@ fn bench_25_calls(b: &mut Bencher) {
   });
 }
 
+#[cfg(bench)]
 #[bench]
 fn bench_maxfn(b : &mut Bencher) {
   let program = frontend::compile_program(r#"

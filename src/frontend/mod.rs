@@ -5,7 +5,7 @@ pub mod ast;
 pub mod parser;
 pub mod codegen;
 
-#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[derive(Debug,PartialEq,Eq,Clone)]
 #[allow(unused_attributes)]
 pub enum FrontendError {
   FeParserError(parser::ParseError),

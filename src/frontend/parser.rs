@@ -1,10 +1,22 @@
 
 use super::ast::{Stmt,Program};
 
-use self::toy::{body,program};
-pub use self::toy::ParseError;
-
 use super::FrontendError;
+use std::error::Error;
+use std::fmt::{self, Display};
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct ParseError;
+impl Error for ParseError {
+  fn description(&self) -> &str {
+    "ParseError"
+  }
+}
+impl Display for ParseError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.description())
+  }
+}
 
 impl From<ParseError> for FrontendError {
   fn from(s: ParseError) -> FrontendError {
@@ -13,14 +25,14 @@ impl From<ParseError> for FrontendError {
 }
 
 pub fn parse_routine(routine_body_text: &str) -> Result<Vec<Stmt>,ParseError> {
-  return body(routine_body_text);
+  return panic!("routine not implemented");
 }
 
 pub fn parse_program(program_text: &str) -> Result<Program,ParseError> {
-  return program(program_text);
+  return panic!("program not implemented");
 }
 
-peg! toy(r#"
+/*
 
 use super::super::ast::*;
 use super::super::ast::Decl::*;
@@ -125,7 +137,7 @@ singleLineComment
   = "//" (!eolChar .)*
 
 multiLineComment
-  = "/*" (!"*/" .)* "*/"
+  = "/*" (!"*/" .)* "*slash"
 
 /* Modeled after ECMA-262, 5th ed., 7.3. */
 eol
@@ -144,5 +156,6 @@ whitespace
 
 "#);
 
+*/
 
 

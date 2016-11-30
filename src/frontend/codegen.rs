@@ -370,7 +370,7 @@ enum SymbolResolution {
 }
 use self::SymbolResolution::*;
 
-#[derive(Display,Debug,PartialEq,Eq,Clone)]
+#[derive(Debug,PartialEq,Eq,Clone)]
 #[allow(unused_attributes)]
 pub enum CodeGenError {
   UnresolvedSymbol(String),

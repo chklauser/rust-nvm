@@ -1,13 +1,9 @@
-#![feature(custom_derive,box_syntax,test)]
-#![feature(plugin)]
-#![plugin(peg_syntax_ext)]
-
 #[macro_use]
 extern crate log;
 
 extern crate env_logger;
 
-#[cfg(test)]
+#[cfg(all(test, bench))]
 extern crate test;
 
 mod vm;

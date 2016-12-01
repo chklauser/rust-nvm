@@ -14,16 +14,17 @@ mod tests;
 
 #[cfg(not(test))]
 fn main() {
-  env_logger::init().unwrap();
-  println!("Compiling program");
-  let program = frontend::compile_program(r#"
+    env_logger::init().unwrap();
+    println!("Compiling program");
+    let program = frontend::compile_program(r#"
     routine main(x) {
       x <- 15
     }
-    "#).unwrap();
+    "#)
+        .unwrap();
 
-  println!("Executing program");
-  let mut param = [0];
-  vm::machine::execute(&program, 0,&mut param).unwrap();
-  println!("Result: {}",param[0]);
+    println!("Executing program");
+    let mut param = [0];
+    vm::machine::execute(&program, 0, &mut param).unwrap();
+    println!("Result: {}", param[0]);
 }

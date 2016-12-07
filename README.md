@@ -94,10 +94,8 @@ will be translated into something similar to the following
 
 Building
 ------------
-Because `rust-nvm` uses the peg parser generator syntax extension, you unfortunately can't compile using a stable
-version of rustc. You need to run a nightly version of cargo and rustc instead. It would be possible to extract the
- toy language gramar into an external file and use the [peg parser generator](https://github.com/kevinmehall/rust-peg)
- as a `build.rs` tool. Haven't found the time to do so.
+This version of nvm compiles and runs on stable rust. If you would like to run benchmark
+tests, you need to install a nightly version of Rust.
 
 ```bash
 # If you are using rustup/rustup.rs or multirust:
@@ -117,13 +115,20 @@ Result: 15
 Known Issues
 ------------
 
- * Associativity in arithemtic expressions is not handled correctly (`5-2+1` results in 2 and not 4)
  * Couldn't figure out a way to allocate the evaluation stack and local variable store on Rust's stack. The local variable store size is known and remains constant for each routine. I would like to do `[0, .. store_size]` but Rust doesn't seem to support allocating arrays on the stack when their size is not known statically.
  * Register allocation and code generation is very, very inefficient
  * There is no CLI, just a bunch of unit tests and benchmarks
 
 History
 -------
+
+### 2016-12-07 Replace `peg` parser with `combine` parser 
+`peg` was very convenient and worked reasonably well, but it was cumbersome to use
+with stable rust. I decided I wanted to have a simple rust-code-only setup running
+on stable rust. Fortunately the 'toy' language is small enough that rewriting the
+parser wasn't too much trouble.
+
+
 
 ### 2014-10-29 Drop stack machine in favour of register machine
 While the stack-based representation (instruction) is much smaller (no need to specify input output locations), it requires us to have both a local variable store *and* an evaluation stack. This means two separate allocations per call. Currently both the local variable store and the evaluation stack need to be allocated on the heap, because Rust has no mechanism for allocating dynamically sized arrays on the stack (`alloca`).

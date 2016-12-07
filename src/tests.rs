@@ -238,6 +238,27 @@ fn simple_call() {
 }
 
 #[test]
+fn simple_call_v() {
+    init();
+    let mut params = [0, 3];
+    // we can't check the result here, but this is a use of the 'call' statement without
+    // a ref parameter. (This is actually kind of exotic)
+    runprorgam(r#"
+    routine main(return,x) {
+      x <- x;
+call afunctionname(y, x);
+      return <- x
+    }
+    routine afunctionname(return,x) {
+      return <- x + 1
+    }
+    "#,
+               &mut params);
+    assert_eq!(params[1], 3);
+    assert_eq!(params[0], 3);
+}
+
+#[test]
 fn simple_function_call() {
     init();
     let mut params = [0, 3];

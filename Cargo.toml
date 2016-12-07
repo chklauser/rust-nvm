@@ -8,5 +8,5 @@ authors = ["klauser"]
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
-peg = "0.3"
-
+combine = "2"
+combine-language = "2"

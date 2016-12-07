@@ -8,7 +8,9 @@ pub mod codegen;
 #[derive(Debug,PartialEq,Eq,Clone)]
 #[allow(unused_attributes)]
 pub enum FrontendError {
-    FeParserError(parser::ParseError),
+    // The parser error uses references into the input. We can't model that at this level.
+    // As a result, the frontend error variant only contains a rendered form of the error message.
+    FeParserError(String),
     FeCodeGenError(codegen::CodeGenError),
 }
 

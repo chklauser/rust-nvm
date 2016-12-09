@@ -1,4 +1,7 @@
 
+use std::fmt::{Display, self};
+use std::error::Error;
+
 use super::vm::bytecode::Program;
 
 pub mod ast;
@@ -12,6 +15,27 @@ pub enum FrontendError {
     // As a result, the frontend error variant only contains a rendered form of the error message.
     FeParserError(String),
     FeCodeGenError(codegen::CodeGenError),
+}
+
+impl Error for FrontendError {
+    fn description(&self) -> &str {
+        "Frontend error"
+    }
+    fn cause(&self) -> Option<&Error> {
+        match self {
+            &FrontendError::FeCodeGenError(ref e) => Some(e),
+            _ => None
+        }
+    }
+}
+
+impl Display for FrontendError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &FrontendError::FeParserError(ref txt) => write!(f, "{}", txt),
+            &FrontendError::FeCodeGenError(ref e) => write!(f, "{}", e)
+        }
+    }
 }
 
 pub type FrontendResult<T> = Result<T, FrontendError>;

@@ -2,6 +2,8 @@
 use std::collections::{HashMap, HashSet};
 use std::cmp::max;
 use std::iter::{repeat, FromIterator};
+use std::error::Error;
+use std::fmt::{self, Display};
 
 use super::FrontendError;
 use super::ast::*;
@@ -374,6 +376,24 @@ use self::CodeGenError::*;
 impl From<CodeGenError> for FrontendError {
     fn from(e: CodeGenError) -> FrontendError {
         FrontendError::FeCodeGenError(e)
+    }
+}
+impl Error for CodeGenError {
+    fn description(&self) -> &str {
+        "Code generation error"
+    }
+}
+impl Display for CodeGenError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &UnresolvedSymbol(ref s) => write!(f, "Unresolved symbol: {}", s),
+            &UnsupportedExpr(ref e) => write!(f, "Unsupported expression: {:?}", e),
+            &DuplicateName(ref s) => write!(f, "Duplicate name: {}", s),
+            &InternalError(s) => write!(f, "Internal compiler error: {}", s),
+            &InsufficientArguments(ref routine, actual, expected) =>
+                write!(f, "Insufficient arguments passed to routine {}. Expected {} Actual {}",
+                    routine, expected, actual)
+        }
     }
 }
 

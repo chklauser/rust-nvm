@@ -219,6 +219,21 @@ fn miniprogram() {
     assert_eq!(params[0], 3 + 1);
 }
 
+/// Unix interpreter lines need to be tolerated by the parser.
+#[test]
+fn allow_interpreter_line() {
+    init();
+    let mut params = [0, 3];
+    runprorgam(r#"#!/bin/env nvm --argument --routine /*
+    routine main(return,x) {
+      return <- x + 1
+    }
+    "#,
+               &mut params);
+    assert_eq!(params[1], 3);
+    assert_eq!(params[0], 3 + 1);
+}
+
 #[test]
 fn simple_call() {
     init();

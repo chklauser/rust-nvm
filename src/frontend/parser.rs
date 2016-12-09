@@ -4,7 +4,7 @@ extern crate combine_language;
 
 use self::combine_language::{LanguageEnv, LanguageDef, Identifier, expression_parser, Assoc,
                              Fixity};
-use self::combine::{satisfy, Parser, parser, ParseResult, optional, many, eof, State, try};
+use self::combine::{satisfy, Parser, parser, ParseResult, optional, many, eof, State, try, token};
 use self::combine::primitives::{Stream, StreamOnce};
 use self::combine::combinator::sep_by;
 use self::combine::char::{string, letter, alpha_num, char};
@@ -176,7 +176,10 @@ pub fn parse_program(program_text: &str) -> Result<Program, combine::ParseError<
             let r = Decl::Routine(id, args, stmts);
             r
         });
-    let mut program = toy.white_space().with(many(routine_decl)).skip(eof()).map(|ds| {
+    let interpreter_line = token('#').with(token('!'))
+        .skip(many::<Vec<_>,_>(satisfy(|c| c != '\n'))).with(token('\n'));
+    let mut program = optional(interpreter_line).with(toy.white_space())
+        .with(many(routine_decl)).skip(eof()).map(|ds| {
         let p = Program(ds);
         p
     });

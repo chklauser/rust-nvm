@@ -2,6 +2,8 @@ use std::vec::Vec;
 use std::result::Result;
 use std::cmp::min;
 use std::iter::{repeat, FromIterator};
+use std::error::Error;
+use std::fmt::{self, Display};
 
 use super::bytecode::{Instruction, Routine, Program, RegisterId};
 use super::bytecode::Instruction::*;
@@ -121,6 +123,29 @@ pub enum RuntimeError {
     RoutineSlotOutOfRange(usize, usize), // actual, maximum
 }
 use self::RuntimeError::*;
+impl Error for RuntimeError {
+    fn description(&self) -> &str {
+        "Runtime error"
+    }
+}
+impl Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &StackUnderflow => write!(f, "Stack underflow"),
+            &NotEnoughParameters(actual, expected) => write!(f,
+                "Not enough arguments to call routine. Expected {} Actual {}", expected, actual),
+            &ParameterOutOfRange(actual, maximum) => write!(f,
+                "Parameter index {} out of range. Maximum parameter index {}", actual, maximum),
+            &RegisterOutOfRange(actual, maximum) => write!(f,
+                "Register index {} out of range. Maximum register index {}", actual, maximum),
+            &DivisionByZero => write!(f, "Division by zero"),
+            &UnsupportedInstruction(ref ins) => write!(f, "Unsupported instruction: {:?}", ins),
+            &UnknownError(txt) => write!(f, "Unknown error: {}", txt),
+            &RoutineSlotOutOfRange(actual, maximum) => write!(f,
+                "Routine index {} out of range. Maximum routine index {}", actual, maximum)
+        }
+    }
+}
 
 pub fn execute<'a>(program: &Program,
                    routine_slot: usize,

@@ -1,12 +1,19 @@
 [package]
 
 name = "nvm"
-version = "0.0.2"
+version = "0.1.0"
 authors = ["klauser"]
 
 # Confirmed working with rustc 1.12.0-nightly (bbfcb471d 2016-07-18)
 [dependencies]
+# logging
 log = "0.3"
 env_logger = "0.3"
+# parser combinator library
 combine = "2"
 combine-language = "2"
+
+# command line argument parser
+[dependencies.clap]
+version = "~2.19.1"
+features = ["suggestions", "color", "wrap_help"]
